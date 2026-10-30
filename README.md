@@ -1,0 +1,91 @@
+# Paperloom · 墨页
+
+**写下想法，交付作品。** 一个把 Markdown 变成可交付文档的本地排版工作台。
+
+[在线使用](https://batype.github.io/paperloom/) · [问题反馈](https://github.com/batype/paperloom/issues) · [MIT](LICENSE)
+
+![Paperloom 工作台](https://raw.githubusercontent.com/batype/paperloom/main/docs/preview.png)
+
+## 为什么做这个
+
+双栏编辑和格式导出已经很常见。Paperloom 把重点放在交付前的最后一公里：同一份内容选合适的版式、发现文档结构问题、查看实际 PDF 校样，然后带走独立文件。
+
+- **一稿三种表达**：技术手册、杂志文章、正式报告；文档样式与工作台的亮暗模式独立。
+- **交付前检查**：标题层级跳跃、同名标题、失效的文内锚点、图片说明和外部图片、宽表格及长代码提示。点击问题定位源码。
+- **真实 PDF 校样与下载**：中文文字可选择、可搜索，自动分页、重复表头、目录、页码，支持 `::: pagebreak` 手动分页。不是截图 PDF，也不依赖打印对话框。
+- **独立 HTML / 原始 MD**：HTML 自带样式和嵌入图片，无需 CDN；MD 保留完整原文。
+- **轻松写作**：CodeMirror 编辑器、语法高亮、格式工具栏、目录定位、编辑/分屏/预览模式、模板、可撤销替换、可关闭的本地草稿、手机布局。
+
+## 三分钟开始
+
+1. 编辑左侧内容，或导入 UTF-8 `.md` / `.markdown` / `.txt`。
+2. 在「排版」选文档风格，调整字号、纸张、目录与页脚。
+3. 「目录」定位章节；「检查」查看结构和资源问题。
+4. 打开「PDF 校样」，生成真正的 PDF，检查分页和表格。
+5. 点击「导出文档」，下载 PDF、HTML 或 MD。`⌘ / Ctrl + S` 直接下载 MD。
+
+「插图」支持本地 PNG / JPEG，图片嵌入 Markdown 后可随 HTML 和 PDF 带走。文件导入、新建和模板替换后，可在工具栏「撤销替换」恢复之前的内容。
+
+```markdown
+# 我的文档
+
+一段 **重点**，一段 `代码`。
+
+::: pagebreak
+
+## 下一页
+
+[回到标题](#我的文档)
+```
+
+## 隐私与保存
+
+正文、检查和导出都在浏览器本地进行；从本站加载程序与字体，不把文档发送到服务端，也不自动请求正文中的外部图片。
+
+默认把当前文档及排版配置保存到本浏览器的 localStorage，可在「草稿与隐私设置」关闭。关闭会删除已保存草稿，内存中的编辑内容仍保留。界面主题偏好单独保留。草稿不是云备份，重要内容请下载 MD；空间不足时会提示保存失败。用户主动打开的外部链接仍然会访问链接目标。
+
+PDF 首次生成会按需加载约 **21.2 MB** 的中文字体（从本站加载，后续可由浏览器缓存），生成过程可取消。中文字体只嵌入使用的字形，所以最终 PDF 通常远小于字体文件。
+
+## 当前边界
+
+- 支持 CommonMark / Markdown-it 表格、删除线、自动链接、代码块；任务清单按 `[ ]` / `[x]` 原文保留，不提供交互复选框。
+- 原始 HTML 与脚本作为文字处理，不执行；Mermaid、LaTeX/数学公式与自定义 CSS 不渲染。对应代码块会有提示。
+- **外部和相对路径图片**不自动加载。请用本地插图嵌入 PNG / JPEG；不会把未加载的图片静默当作已成功导出。
+- PDF 里独立段落的本地图片正常嵌入，行内图片保留为描述文字。字体不覆盖的字形（例如部分 Emoji）不保证显示。
+- PDF 使用 Noto Sans SC；HTML 使用接收设备的系统字体（杂志主题优先衬线）。PDF 斜体使用正文字体，因此阅读预览、HTML 与 PDF 的字体、换行不保证逐像素相同。以实际 PDF 校样为准。
+- 文档最大 4 MiB / 12,000 行，单张图片 2 MiB / 1600 万像素。解析 6 秒、PDF 60 秒会停止并提示，可拆分文档后重试。
+- 手机支持编辑和导出，内嵌 PDF 的可视体验取决于设备浏览器的 PDF 查看器；建议用系统阅读器打开下载文件。
+- 首版是单文档工作台，无账号、云同步或协作服务。检查只验证文档内部结构，不联网检查外部链接的 HTTP 状态。
+
+## 本地开发
+
+Node.js 24 LTS。
+
+```sh
+npm ci
+npm run dev
+```
+
+开发地址：`http://127.0.0.1:4196/paperloom/`。
+
+```sh
+npm test          # 核心检查与真实 PDF 引擎测试
+npm run build     # TypeScript 检查和 Vite 正式构建
+npm run preview   # 生产预览，端口 4197
+```
+
+新前端采用 **React + Vite + TypeScript**。通用核心独立于 React；Markdown 解析、HTML 导出和 PDF 排版分别在可终止的 Web Worker 中完成。PDF 引擎和字体在需要时才加载。当前不发布 npm CLI/API 或 AI skill，首版聚焦在线编辑和交付。
+
+`src/core/`：解析、锚点、检查、排版样式、HTML 和 PDF 文档模型。`src/workers/`：耗时工作的边界。`src/ui/`：编辑器与交互。`public/fonts/`：完整中文字体、许可证与复现说明。
+
+## GitHub Pages
+
+Vite `base` 设置为 `/paperloom/`。推送 `main` 后，GitHub Actions 执行安装、测试、构建与 Pages 部署；PR 只运行检查。仓库 Pages 的构建来源需要选择 GitHub Actions。
+
+自托管时，根据部署目录修改 `vite.config.ts` 的 `base`。字体通过 `import.meta.env.BASE_URL` 相对本站加载。
+
+## 验证与许可
+
+见 [验证记录](docs/validation.md) 和 [设计取舍](docs/design.md)。欢迎通过 Issue 提供带最小示例的反馈；请勿附带敏感正文。
+
+项目代码 MIT。Noto Sans SC 字体为 SIL OFL，见 [字体说明](public/fonts/README.md)；依赖许可见 [第三方声明](THIRD-PARTY-NOTICES.txt)。

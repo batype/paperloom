@@ -1,0 +1,36 @@
+{
+  "name": "paperloom",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A local Markdown publishing workbench with publication checks and selectable-text Chinese PDF export.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 4196 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "build:core": "tsc -p tsconfig.core.json",
+    "test": "npm run build:core && node --test tests/*.test.mjs",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4197 --strictPort"
+  },
+  "dependencies": {
+    "@codemirror/lang-markdown": "6.5.0",
+    "@uiw/react-codemirror": "4.25.2",
+    "highlight.js": "11.11.1",
+    "lucide-react": "0.468.0",
+    "markdown-it": "14.3.3",
+    "pdfmake": "0.2.20",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "14.1.2",
+    "@types/node": "22.19.0",
+    "@types/pdfmake": "0.2.12",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "typescript": "7.0.2",
+    "vite": "8.3.5"
+  }
+}
