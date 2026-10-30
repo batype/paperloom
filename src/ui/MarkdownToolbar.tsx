@@ -67,15 +67,18 @@ export function MarkdownToolbar({ editor, onImage, history }: Props) {
     setDialog(kind);
   }
   function submit() {
+    let action: MarkdownAction;
     if (dialog === "link") {
       if (!safeLink(url)) {
         setError("请输入有效的 http(s) 链接、mailto、tel、#锚点或相对路径");
         return;
       }
-      run({ type: "link", label, url });
-    } else if (dialog === "code") run({ type: "codeblock", language });
-    else run({ type: "table", rows, columns });
+      action = { type: "link", label, url };
+    } else if (dialog === "code") action = { type: "codeblock", language };
+    else action = { type: "table", rows, columns };
     setDialog("");
+    // Apply after the native modal closes so its focus restoration does not steal the editor caret.
+    requestAnimationFrame(() => run(action));
   }
   return (
     <>
