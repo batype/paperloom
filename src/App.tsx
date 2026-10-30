@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { Editor, type EditorHandle } from "./ui/Editor";
 import { Modal } from "./ui/Modal";
+import { MarkdownToolbar } from "./ui/MarkdownToolbar";
 import { useCompiler } from "./ui/useCompiler";
 import {
   DEFAULT_OPTIONS,
@@ -96,6 +97,7 @@ function download(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 export default function App() {
+  const [history, setHistory] = useState({ undo: false, redo: false });
   const [initial] = useState(load),
     [source, setSource] = useState(initial.source),
     [options, setOptions] = useState<Options>(initial.options),
@@ -600,78 +602,25 @@ export default function App() {
               </span>
               <span className="pane-hint">⌘ / Ctrl + S 保存 MD</span>
             </div>
-            <div className="format-bar">
-              <button
-                title="二级标题"
-                aria-label="插入二级标题"
-                onClick={() => editor.current?.insert("\n## ")}
-              >
-                <Heading2 size={16} />
-              </button>
-              <button
-                title="粗体"
-                aria-label="插入粗体"
-                className="bold-tool"
-                onClick={() => editor.current?.insert("**", "**")}
-              >
-                B
-              </button>
-              <button
-                title="链接"
-                aria-label="插入链接"
-                onClick={() => editor.current?.insert("[链接文字](", ")")}
-              >
-                <Link size={15} />
-              </button>
-              <button
-                title="引用"
-                aria-label="插入引用"
-                onClick={() => editor.current?.insert("\n> ")}
-              >
-                <Quote size={15} />
-              </button>
-              <button
-                title="代码块"
-                aria-label="插入代码块"
-                onClick={() =>
-                  editor.current?.insert("\n```typescript\n", "\n```\n")
-                }
-              >
-                <Code2 size={16} />
-              </button>
-              <button
-                title="表格"
-                aria-label="插入表格"
-                onClick={() =>
-                  editor.current?.insert(
-                    "\n| 标题 | 内容 |\n| --- | --- |\n| 项目 | 说明 |\n",
-                  )
-                }
-              >
-                <Table2 size={15} />
-              </button>
-              <button
-                title="嵌入本地 PNG / JPEG"
-                aria-label="插入本地图片"
-                onClick={() => image.current?.click()}
-              >
-                <ImagePlus size={15} />
-              </button>
-              <span className="tool-divider" />
-              <button
-                className="break-tool"
-                title="PDF 中强制另起一页"
-                onClick={() => editor.current?.insert("\n\n::: pagebreak\n\n")}
-              >
-                插入分页
-              </button>
-            </div>
+            <MarkdownToolbar
+              editor={editor}
+              onImage={() => image.current?.click()}
+              history={history}
+            />
             <div className="editor-area">
               <Editor
                 ref={editor}
                 value={source}
                 onChange={change}
                 dark={dark}
+                onError={status}
+                onHistory={(next) =>
+                  setHistory((prev) =>
+                    prev.undo === next.undo && prev.redo === next.redo
+                      ? prev
+                      : next,
+                  )
+                }
               />
             </div>
             <div className="pane-footer">
@@ -1294,11 +1243,11 @@ export default function App() {
                 <h3>01 / 写什么都可以</h3>
                 <p>
                   直接编辑左侧源码，或导入 UTF-8 的 .md /
-                  .txt。支持标题、列表、引用、链接、代码高亮、删除线、表格和任务清单原文。
+                  .txt。支持标题、列表、引用、链接、代码高亮、删除线、表格和任务清单。工具栏支持标题、文字格式、列表、链接、代码块和表格。选中文本后应用格式，再次点击可以取消。
                 </p>
                 <pre>
                   {
-                    "# 标题\n\n**重点** 和 `代码`\n\n> 一段引用\n\n::: pagebreak"
+                    "# 标题\n\n**重点** 和 `代码`\n\n- [ ] 待处理\n- [x] 已完成\n\n> 一段引用\n\n::: pagebreak"
                   }
                 </pre>
                 <p>

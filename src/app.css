@@ -394,7 +394,7 @@ main#workspace {
 }
 .editor-pane {
   display: grid;
-  grid-template-rows: 43px 35px minmax(0, 1fr) 27px;
+  grid-template-rows: 43px auto minmax(0, 1fr) 27px;
   min-width: 0;
   min-height: 0;
   border-right: 1px solid var(--line);
@@ -1677,7 +1677,7 @@ main#workspace {
     flex-shrink: 0;
     border-right: 0;
     border-bottom: 1px solid var(--line);
-    grid-template-rows: 37px 34px minmax(0, 1fr) 26px;
+    grid-template-rows: 37px auto minmax(0, 1fr) 26px;
   }
   .preview-pane {
     height: 640px;
@@ -1935,4 +1935,212 @@ main#workspace {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* Compact grouped editing tools; menus are not clipped by the editor scroller. */
+.format-bar {
+  flex-wrap: wrap;
+  align-content: center;
+  gap: 3px;
+  padding: 5px 9px;
+  min-height: 37px;
+  position: relative;
+  z-index: 16;
+}
+.format-bar .format-group {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.format-bar button {
+  width: 24px;
+  height: 25px;
+  flex-shrink: 0;
+}
+.format-bar select {
+  width: 53px;
+  font-size: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--text);
+  height: 25px;
+  padding: 0 3px;
+  cursor: pointer;
+}
+.format-bar .tool-divider {
+  margin: 0 3px;
+}
+.tools-dropdown {
+  position: relative;
+  display: block;
+}
+.tools-dropdown summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 25px;
+  padding: 0 3px;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 3px;
+}
+.tools-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+.tools-dropdown summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tools-dropdown[open] > summary {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tools-more {
+  margin-left: auto;
+}
+.tools-menu {
+  position: absolute;
+  top: 31px;
+  right: 0;
+  width: 210px;
+  padding: 7px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px #15244325;
+  z-index: 20;
+}
+.tools-dropdown:not(.tools-more) .tools-menu {
+  right: auto;
+  left: -75px;
+}
+.tools-menu > span {
+  display: block;
+  font-size: 9px;
+  color: var(--muted);
+  padding: 7px 9px;
+}
+.format-bar .tools-menu button {
+  width: 100%;
+  height: 34px;
+  justify-content: flex-start;
+  gap: 10px;
+  font-size: 11px;
+  padding: 0 9px;
+  color: var(--text);
+  border-radius: 4px;
+}
+.tools-menu small {
+  font-size: 9px;
+  color: var(--muted);
+  margin-left: auto;
+}
+.tools-menu hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 6px 2px;
+}
+.insert-form > label,
+.insert-form > .insert-grid {
+  margin: 22px 28px 0;
+}
+.insert-form label {
+  font-size: 11px;
+  color: var(--text);
+  display: block;
+}
+.insert-form input,
+.insert-form select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  margin-top: 8px;
+  font-size: 12px;
+}
+.insert-form > p {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.9;
+  margin: 15px 28px;
+}
+.insert-form .insert-error {
+  color: #b5533a;
+}
+.insert-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.editor-area .cm-panels {
+  background: var(--soft);
+  border-color: var(--line);
+  color: var(--text);
+}
+.editor-area .cm-search {
+  padding: 10px;
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 2.3;
+}
+.editor-area .cm-search input.cm-textfield {
+  width: 130px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: 11px/1.8 inherit;
+}
+.editor-area .cm-search .cm-button {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 10px;
+}
+.editor-area .cm-search input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+@media (max-width: 720px) {
+  .format-bar {
+    padding: 5px 10px;
+    gap: 4px;
+  }
+  .format-bar button {
+    height: 28px;
+    width: 25px;
+  }
+  .format-bar select,
+  .tools-dropdown summary {
+    height: 28px;
+  }
+  .tools-menu {
+    top: 33px;
+  }
+  .insert-form > label,
+  .insert-form > .insert-grid {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+  .insert-form > p {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+@media (max-width: 720px) {
+  .tools-dropdown:not(.tools-more) .tools-menu {
+    left: auto;
+    right: 0;
+  }
+}
+
+.tools-dropdown summary > span {
+  font-size: 10px;
+  margin: 0 2px;
+  white-space: nowrap;
 }

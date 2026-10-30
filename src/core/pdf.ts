@@ -118,7 +118,13 @@ export function buildPdf(source: string, value: Options): TDocumentDefinitions {
               });
           }
         } else
-          out.push({ text: inline(children, p.accent), margin: [0, 0, 0, 10] });
+          out.push({
+            text: inline(children, p.accent),
+            margin: [0, 0, 0, 10],
+            ...(typeof it.meta?.taskChecked === "boolean"
+              ? { taskChecked: it.meta.taskChecked }
+              : {}),
+          });
       } else if (
         t.type === "bullet_list_open" ||
         t.type === "ordered_list_open"
@@ -129,8 +135,54 @@ export function buildPdf(source: string, value: Options): TDocumentDefinitions {
             ? "bullet_list_close"
             : "ordered_list_close";
         while (pos < tokens.length && tokens[pos].type !== end) {
-          if (tokens[pos++].type === "list_item_open")
-            list.push({ stack: sequence("list_item_close") });
+          if (tokens[pos++].type === "list_item_open") {
+            const stack = sequence("list_item_close"),
+              first = stack[0];
+            if (typeof first?.taskChecked === "boolean") {
+              const checked = first.taskChecked;
+              delete first.taskChecked;
+              const canvas: Node[] = [
+                {
+                  type: "rect",
+                  x: 0,
+                  y: 4,
+                  w: 8,
+                  h: 8,
+                  lineWidth: 0.7,
+                  lineColor: p.muted,
+                },
+              ];
+              if (checked)
+                canvas.push(
+                  {
+                    type: "line",
+                    x1: 1.5,
+                    y1: 8,
+                    x2: 3.5,
+                    y2: 10,
+                    lineWidth: 1,
+                    lineColor: p.accent,
+                  },
+                  {
+                    type: "line",
+                    x1: 3.5,
+                    y1: 10,
+                    x2: 7,
+                    y2: 5.5,
+                    lineWidth: 1,
+                    lineColor: p.accent,
+                  },
+                );
+              list.push({
+                listType: "none",
+                columns: [
+                  { width: 12, canvas },
+                  { width: "*", stack },
+                ],
+                columnGap: 3,
+              });
+            } else list.push({ stack });
+          }
         }
         pos++;
         out.push({

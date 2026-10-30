@@ -1,6 +1,6 @@
 import MarkdownIt from "markdown-it";
 import hljs from "highlight.js/lib/common";
-import type Token from "markdown-it/lib/token.mjs";
+import Token from "markdown-it/lib/token.mjs";
 import {
   checkInput,
   type Compilation,
@@ -70,12 +70,35 @@ export function inlineText(tokens: Token[] | null) {
     )
     .join("");
 }
+md.renderer.rules.task_checkbox = (tokens, i) =>
+  `<input class="task-checkbox" type="checkbox" disabled aria-label="${tokens[i].meta.checked ? "已完成任务" : "未完成任务"}"${tokens[i].meta.checked ? " checked" : ""}/>`;
 export function prepare(source: string) {
   const tokens = parse(source),
     headings: Heading[] = [],
     issues: Issue[] = [],
     counts = new Map<string, number>(),
     usedIds = new Set<string>();
+  for (let i = 0; i < tokens.length; i++) {
+    if (
+      tokens[i].type !== "list_item_open" ||
+      tokens[i + 1]?.type !== "paragraph_open" ||
+      tokens[i + 2]?.type !== "inline"
+    )
+      continue;
+    const inline = tokens[i + 2],
+      first = inline.children?.[0];
+    const marker =
+      first?.type === "text" ? /^\[([ xX])\]\s+/.exec(first.content) : null;
+    if (!marker || !first) continue;
+    const checked = marker[1].toLowerCase() === "x";
+    first.content = first.content.slice(marker[0].length);
+    inline.meta = { ...inline.meta, taskChecked: checked };
+    const box = new Token("task_checkbox", "input", 0);
+    box.meta = { checked };
+    inline.children!.unshift(box);
+    tokens[i].attrJoin("class", "task-item");
+    tokens[i + 1].attrJoin("class", "task-paragraph");
+  }
   let prev = 0,
     h1 = 0;
   for (let i = 0; i < tokens.length; i++) {

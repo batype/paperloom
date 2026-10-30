@@ -1,6 +1,6 @@
 {
   "name": "paperloom",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "A local Markdown publishing workbench with publication checks and selectable-text Chinese PDF export.",
@@ -21,7 +21,11 @@
     "markdown-it": "14.3.3",
     "pdfmake": "0.2.20",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15",
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/search": "6.7.2"
   },
   "devDependencies": {
     "@types/markdown-it": "14.1.2",
