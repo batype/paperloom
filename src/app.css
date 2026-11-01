@@ -2304,3 +2304,28 @@ main#workspace {
 @media (min-width: 721px) {
   .document-actions > .workspace-help { display: none; }
 }
+
+/* Scenario templates stay separate from the three document visual themes. */
+.template-filters { margin: 0 28px 18px; }
+.template-search { display: flex; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); background: var(--surface); }
+.template-search input { width: 100%; min-width: 0; border: 0; background: transparent; color: var(--text); font-size: 12px; padding: 12px 0; }
+.template-categories { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 14px; }
+.template-categories button { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: 11px; }
+.template-categories button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+.template-categories span { margin-left: 6px; opacity: .65; font-size: 10px; }
+.template-count { font-size: 10px; color: var(--muted); margin: 14px 0 0; }
+.template-library .template-preview { height: 182px; padding: 20px; }
+.template-library .template-preview h3 { font-size: 22px; margin: 16px 0; }
+.template-preview ul { padding: 0; margin: 0; list-style: none; font-size: 10px; line-height: 1.9; opacity: .8; }
+.template-preview li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.template-library .template-card p { line-height: 1.8; }
+.template-empty { text-align: center; padding: 10px 20px 35px; font-size: 13px; color: var(--muted); }
+@media (max-width: 720px) {
+  .template-filters { margin-left: 20px; margin-right: 20px; }
+  .template-categories { gap: 5px; }
+  .template-categories button { padding: 8px; font-size: 10px; }
+  .template-library .template-preview { height: 134px; padding: 13px 10px; }
+  .template-library .template-preview > span { font-size: 6px; letter-spacing: 0; }
+  .template-library .template-preview h3 { font-size: 16px; margin: 10px 0; }
+  .template-preview ul { font-size: 7px; }
+}

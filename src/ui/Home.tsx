@@ -22,7 +22,7 @@ export function Home({ onStart, onImport, onTemplates, onGuide, restored }: {
     </section>
     <section className="home-features" aria-label="你可以在工作台做什么">
       <div><Columns2 size={22} /><h2>为写作留出空间</h2><p>占满窗口的编辑区，分屏、仅编辑、仅预览自由切换；排版面板随时收起。</p><button onClick={onStart}>开始写作 <ArrowUpRight size={14} /></button></div>
-      <div><BookOpen size={22} /><h2>从好模板开始</h2><p>技术手册、杂志文章与正式报告。选好起点，再用目录和检查完善内容。</p><button onClick={onTemplates}>挑选模板 <ArrowUpRight size={14} /></button></div>
+      <div><BookOpen size={22} /><h2>从好模板开始</h2><p>12 份常用模板，涵盖工作汇报、技术分享、会议纪要等场景。选好起点，直接开写。</p><button onClick={onTemplates}>挑选模板 <ArrowUpRight size={14} /></button></div>
       <div><FileText size={22} /><h2>校样，再交付</h2><p>生成真实 PDF 检查分页，导出可选择文字的 PDF、独立 HTML 或原始 MD。</p><button onClick={onGuide}>阅读使用指南 <ArrowUpRight size={14} /></button></div>
     </section>
     <div className="home-bottom"><h2>下一份好文档，从这里开始。</h2><button className="primary" onClick={onStart}>进入编辑工作台 <ArrowUpRight size={16} /></button></div>

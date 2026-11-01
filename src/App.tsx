@@ -36,6 +36,7 @@ import {
   Type,
   X,
 } from "lucide-react";
+import { TemplatesModal } from "./ui/TemplatesModal";
 import { Home } from "./ui/Home";
 import { Editor, type EditorHandle } from "./ui/Editor";
 import { Modal } from "./ui/Modal";
@@ -1049,41 +1050,9 @@ export default function App() {
         }}
       />
       {modal === "templates" && (
-        <Modal title="从一份好模板开始" onClose={() => setModal("")} wide>
-          <p className="modal-description">
-            模板会替换当前内容。替换后可在工具栏撤销。
-          </p>
-          <div className="template-grid">
-            {templates.map((t, n) => (
-              <button
-                key={t.id}
-                className={`template-card template-${t.theme}`}
-                onClick={() =>
-                  replaceDocument(t.source, t.label, {
-                    ...DEFAULT_OPTIONS,
-                    theme: t.theme,
-                  })
-                }
-              >
-                <div className="template-preview">
-                  <span>0{n + 1} / PAPERLOOM</span>
-                  <h3>{t.label}</h3>
-                  <i />
-                  <i />
-                  <i />
-                  <div />
-                  <i />
-                  <i />
-                </div>
-                <strong>
-                  {t.label}
-                  <ArrowUpRight size={15} />
-                </strong>
-                <p>{t.description}</p>
-              </button>
-            ))}
-          </div>
-        </Modal>
+        <TemplatesModal onClose={() => setModal("")} onSelect={(t) =>
+          replaceDocument(t.source, t.label, { ...DEFAULT_OPTIONS, theme: t.theme })
+        } />
       )}
       {modal === "export" && (
         <Modal
