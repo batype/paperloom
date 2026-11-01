@@ -100,3 +100,9 @@ Vite `base` 设置为 `/paperloom/`。推送 `main` 后，GitHub Actions 执行�
 见 [验证记录](docs/validation.md) 和 [设计取舍](docs/design.md)。欢迎通过 Issue 提供带最小示例的反馈；请勿附带敏感正文。
 
 项目代码 MIT。Noto Sans SC 字体为 SIL OFL，见 [字体说明](public/fonts/README.md)；依赖许可见 [第三方声明](THIRD-PARTY-NOTICES.txt)。
+
+## 首页与编辑工作台
+
+首页用于展示产品，点击「进入工作台」开始编辑。也可直接访问 [全窗口工作台](https://batype.github.io/paperloom/#/workspace)。工作台包括导入、新建、模板、排版、目录、检查、PDF 校样和 PDF / HTML / MD 导出；亮暗主题、使用指南与草稿设置也可直接访问。
+
+首页与工作台切换不会卸载编辑器，当前正文、排版设置与撤销记录保留。刷新时按原有本地草稿设置恢复；关闭本地草稿后，刷新不会恢复正文。手机默认展示编辑区，可切换预览并展开排版面板。

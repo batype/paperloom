@@ -36,6 +36,7 @@ import {
   Type,
   X,
 } from "lucide-react";
+import { Home } from "./ui/Home";
 import { Editor, type EditorHandle } from "./ui/Editor";
 import { Modal } from "./ui/Modal";
 import { MarkdownToolbar } from "./ui/MarkdownToolbar";
@@ -97,6 +98,22 @@ function download(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 export default function App() {
+  const [page, setPage] = useState(() => location.hash.startsWith("#/workspace") ? "workspace" : "home");
+  const isWorkspace = page === "workspace";
+  const enterWorkspace = () => { location.hash = "/workspace"; };
+  useEffect(() => {
+    const navigate = () => {
+      setPage(location.hash.startsWith("#/workspace") ? "workspace" : "home");
+      if (!location.hash.startsWith("#/workspace")) setModal("");
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => { if (!document.querySelector("dialog[open]")) document.getElementById("workspace")?.focus({ preventScroll: true }); });
+    };
+    window.addEventListener("hashchange", navigate);
+    return () => window.removeEventListener("hashchange", navigate);
+  }, []);
+  useEffect(() => {
+    document.title = isWorkspace ? "编辑工作台 · Paperloom 墨页" : "Paperloom 墨页 · Markdown 排版与交付";
+  }, [isWorkspace]);
   const [history, setHistory] = useState({ undo: false, redo: false });
   const [initial] = useState(load),
     [source, setSource] = useState(initial.source),
@@ -113,7 +130,7 @@ export default function App() {
       initial.restored ? "已恢复本地草稿" : "草稿仅保存在此浏览器",
     );
   const [mode, setMode] = useState<"split" | "edit" | "preview">("split"),
-    [sidebar, setSidebar] = useState(true),
+    [sidebar, setSidebar] = useState(() => !matchMedia("(max-width: 720px)").matches),
     [sideTab, setSideTab] = useState<"style" | "outline" | "check">("style"),
     [previewTab, setPreviewTab] = useState<"read" | "pdf">("read"),
     [modal, setModal] = useState<
@@ -424,21 +441,20 @@ export default function App() {
     },
   ] as const;
   return (
-    <>
-      <a href="#workspace" className="skip">
+    <div className={`app-shell ${isWorkspace ? "workspace-page" : "home-page"}`}>
+      <a href="#/workspace" className="skip" onClick={(e) => { if (isWorkspace) { e.preventDefault(); document.getElementById("editor-workbench")?.focus(); } }}>
         跳到工作台
       </a>
       <header className="app-header">
-        <a className="brand" href="#" aria-label="Paperloom 墨页首页">
+        <a className="brand" href="#/" aria-label="Paperloom 墨页首页">
           <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" />
           <span>
             Paperloom<small>墨页</small>
           </span>
         </a>
         <nav className="main-nav">
-          <button className="active" onClick={() => setModal("")}>
-            工作台
-          </button>
+          <button className={!isWorkspace ? "active" : ""} onClick={() => { location.hash = "/"; }}>首页</button>
+          <button className={isWorkspace ? "active" : ""} onClick={enterWorkspace}>编辑工作台</button>
           <button onClick={() => setModal("guide")}>
             使用指南 <ArrowUpRight size={12} />
           </button>
@@ -478,42 +494,23 @@ export default function App() {
           >
             <Github size={18} />
           </a>
-          <button
+          {isWorkspace ? <button
             className="primary header-export"
             disabled={!fresh || pdfBusy}
             onClick={() => setModal("export")}
-          >
-            <ArrowDownToLine size={15} /> 导出文档
-          </button>
+          ><ArrowDownToLine size={15} /> 导出文档</button> : <button className="primary header-export" onClick={enterWorkspace}><Maximize2 size={15} /> 进入工作台</button>}
+
         </div>
       </header>
       <main id="workspace" tabIndex={-1}>
-        <section className="intro">
-          <div>
-            <div className="eyebrow">
-              FROM MARKDOWN TO SOMETHING WORTH SHARING
-            </div>
-            <h1>
-              写下想法，<em>交付作品。</em>
-            </h1>
-            <p>同一份 Markdown，三种表达。让文档的最后一公里，也轻松一点。</p>
-          </div>
-          <button
-            className="template-entry"
-            onClick={() => setModal("templates")}
-          >
-            <span className="mini-sheets">
-              <i />
-              <i />
-              <i />
-            </span>
-            <span>
-              从一份好模板开始<small>技术手册 / 经验文章 / 方案报告</small>
-            </span>
-            <ArrowUpRight size={17} />
-          </button>
-        </section>
+        {!isWorkspace && <Home onStart={enterWorkspace}
+          onImport={() => { enterWorkspace(); file.current?.click(); }}
+          onTemplates={() => { enterWorkspace(); setModal("templates"); }}
+          onGuide={() => setModal("guide")} restored={initial.restored} />}
         <section
+          id="editor-workbench"
+          tabIndex={-1}
+          hidden={!isWorkspace}
           className={`workbench mode-${mode} ${sidebar ? "" : "no-sidebar"}`}
           aria-label="Markdown 工作台"
         >
@@ -556,6 +553,8 @@ export default function App() {
                 <Plus size={14} />
                 新建
               </button>
+              <button onClick={() => setModal("templates")}><BookOpen size={14} />模板</button>
+              <button className="workspace-help" onClick={() => setModal("guide")} aria-label="使用指南"><BookOpen size={14} /></button>
               <div className="layout-switch" role="group" aria-label="编辑布局">
                 <button
                   aria-label="仅编辑"
@@ -1021,13 +1020,13 @@ export default function App() {
             </button>
           </div>
         </section>
-        <footer className="site-footer">
+        {!isWorkspace && <footer className="site-footer">
           <span>PAPERLOOM / 墨页</span>
           <span>让好内容，被认真阅读。</span>
           <button onClick={() => setModal("guide")}>
             语法与使用说明 <ArrowUpRight size={12} />
           </button>
-        </footer>
+        </footer>}
       </main>
       <input
         type="file"
@@ -1236,7 +1235,7 @@ export default function App() {
             <p className="guide-lead">
               写作 → 选排版 → 做检查 → 看校样 → 导出。
               <br />
-              第一次打开就能开始，不需要账号和配置。
+              从首页进入「编辑工作台」即可开始，不需要账号和配置。首页仅展示功能；工作台占满窗口，导入、模板、排版、检查和导出都在其中。
             </p>
             <div className="guide-grid">
               <section>
@@ -1301,6 +1300,6 @@ export default function App() {
           </button>
         </div>
       )}
-    </>
+    </div>
   );
 }
