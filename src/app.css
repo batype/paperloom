@@ -2144,3 +2144,96 @@ main#workspace {
   margin: 0 2px;
   white-space: nowrap;
 }
+
+/* A single measured row: only overflowed actions move into More. */
+.format-bar.adaptive-toolbar {
+  --tool-size: 25px;
+  --tool-height: 25px;
+  --tool-gap: 3px;
+  flex-wrap: nowrap;
+  gap: var(--tool-gap);
+  min-width: 0;
+}
+.toolbar-visible,
+.toolbar-measure-row {
+  display: flex;
+  align-items: center;
+  gap: var(--tool-gap);
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+.toolbar-visible:empty {
+  display: none;
+}
+.adaptive-toolbar .tool-slot {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.adaptive-toolbar button.tool-slot {
+  width: var(--tool-size);
+  height: var(--tool-height);
+  padding: 0;
+}
+.adaptive-toolbar .tool-slot select {
+  width: 53px;
+  height: var(--tool-height);
+  flex-shrink: 0;
+}
+.toolbar-measure {
+  position: absolute;
+  inset: 0;
+  height: 0;
+  visibility: hidden;
+  overflow: hidden;
+  pointer-events: none;
+}
+.toolbar-measure-row {
+  width: max-content;
+}
+.toolbar-more-size,
+.adaptive-toolbar .tools-more summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: var(--tool-height);
+  padding: 0 5px;
+  white-space: nowrap;
+}
+.toolbar-more-size > span,
+.adaptive-toolbar .tools-more summary > span {
+  font-size: 10px;
+  margin: 0 2px;
+}
+.adaptive-toolbar .tools-more {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.adaptive-toolbar .tools-menu {
+  max-height: min(60vh, 420px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.adaptive-toolbar .tools-menu .overflow-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 9px;
+  font-size: 11px;
+}
+.adaptive-toolbar .overflow-heading select {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+@media (max-width: 720px) {
+  .format-bar.adaptive-toolbar {
+    --tool-size: 28px;
+    --tool-height: 28px;
+  }
+}
+.toolbar-more-size {
+  width: max-content;
+}

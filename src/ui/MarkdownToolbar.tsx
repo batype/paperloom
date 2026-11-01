@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import {
   Bold,
   Italic,
@@ -20,11 +26,100 @@ import {
   Undo2,
   Redo2,
   Search,
-  ChevronDown,
+  type LucideIcon,
 } from "lucide-react";
 import { Modal } from "./Modal";
 import { safeLink, type MarkdownAction } from "../core/editing";
 import type { EditorHandle } from "./Editor";
+import { visibleToolbarCount } from "../core/toolbar-layout";
+type InsertDialog = "" | "link" | "code" | "table";
+interface Tool {
+  id: string;
+  label: string;
+  icon?: LucideIcon;
+  shortcut?: string;
+  hint?: string;
+  action?: MarkdownAction;
+  dialog?: InsertDialog;
+}
+const TOOLS: Tool[] = [
+  { id: "undo", label: "撤销编辑", icon: Undo2, shortcut: "⌘/Ctrl+Z" },
+  { id: "redo", label: "重做编辑", icon: Redo2, shortcut: "⌘/Ctrl+Shift+Z" },
+  { id: "heading", label: "设置标题级别", shortcut: "⌘/Ctrl+Alt+1–6" },
+  {
+    id: "bold",
+    label: "粗体",
+    icon: Bold,
+    shortcut: "⌘/Ctrl+B",
+    action: { type: "bold" },
+  },
+  {
+    id: "italic",
+    label: "斜体",
+    icon: Italic,
+    shortcut: "⌘/Ctrl+I",
+    action: { type: "italic" },
+  },
+  {
+    id: "strike",
+    label: "删除线",
+    icon: Strikethrough,
+    shortcut: "⌘/Ctrl+Shift+X",
+    action: { type: "strike" },
+  },
+  {
+    id: "inline-code",
+    label: "行内代码",
+    icon: Code,
+    shortcut: "⌘/Ctrl+E",
+    action: { type: "inline-code" },
+  },
+  { id: "bullet", label: "无序列表", icon: List, action: { type: "bullet" } },
+  {
+    id: "ordered",
+    label: "有序列表",
+    icon: ListOrdered,
+    action: { type: "ordered" },
+  },
+  { id: "task", label: "任务列表", icon: ListTodo, action: { type: "task" } },
+  { id: "quote", label: "引用块", icon: Quote, action: { type: "quote" } },
+  { id: "link", label: "插入链接", icon: Link, dialog: "link" },
+  { id: "image", label: "插入本地图片", icon: ImagePlus, hint: "PNG / JPEG" },
+  {
+    id: "code",
+    label: "代码块",
+    icon: Code2,
+    dialog: "code",
+    hint: "可选语言",
+  },
+  {
+    id: "table",
+    label: "表格",
+    icon: Table2,
+    dialog: "table",
+    hint: "可设尺寸",
+  },
+  { id: "rule", label: "分隔线", icon: Minus, action: { type: "rule" } },
+  {
+    id: "pagebreak",
+    label: "PDF 分页",
+    icon: Scissors,
+    action: { type: "pagebreak" },
+  },
+  {
+    id: "indent",
+    label: "增加缩进",
+    icon: IndentIncrease,
+    action: { type: "indent" },
+  },
+  {
+    id: "outdent",
+    label: "减少缩进",
+    icon: IndentDecrease,
+    action: { type: "outdent" },
+  },
+  { id: "search", label: "查找 / 替换", icon: Search, shortcut: "⌘/Ctrl+F" },
+];
 interface Props {
   editor: RefObject<EditorHandle | null>;
   onImage: () => void;
@@ -32,13 +127,81 @@ interface Props {
 }
 export function MarkdownToolbar({ editor, onImage, history }: Props) {
   const root = useRef<HTMLDivElement>(null),
-    [dialog, setDialog] = useState<"" | "link" | "code" | "table">(""),
+    [dialog, setDialog] = useState<InsertDialog>(""),
     [label, setLabel] = useState(""),
     [url, setUrl] = useState(""),
     [language, setLanguage] = useState(""),
     [rows, setRows] = useState(3),
     [columns, setColumns] = useState(3),
     [error, setError] = useState("");
+  const measureRow = useRef<HTMLDivElement>(null),
+    moreMeasure = useRef<HTMLSpanElement>(null),
+    more = useRef<HTMLDetailsElement>(null);
+  const [visibleCount, setVisibleCount] = useState(0),
+    countRef = useRef(0),
+    pendingFocus = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const bar = root.current,
+      row = measureRow.current,
+      button = moreMeasure.current;
+    if (!bar || !row || !button) return;
+    let stopped = false;
+    const measure = () => {
+      if (stopped || bar.getBoundingClientRect().width === 0) return;
+      const style = getComputedStyle(bar),
+        gap = parseFloat(style.columnGap) || 0;
+      const available =
+        bar.clientWidth -
+        (parseFloat(style.paddingLeft) || 0) -
+        (parseFloat(style.paddingRight) || 0);
+      const widths = Array.from(row.children).map(
+        (e) => e.getBoundingClientRect().width,
+      );
+      const next = visibleToolbarCount(
+        available,
+        widths,
+        button.getBoundingClientRect().width,
+        gap,
+      );
+      if (next === countRef.current) return;
+      const active = document.activeElement as HTMLElement | null;
+      if (active && bar.contains(active))
+        pendingFocus.current =
+          active.closest<HTMLElement>("[data-tool-id]")?.dataset.toolId ||
+          "more";
+      countRef.current = next;
+      setVisibleCount(next);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    observer.observe(row);
+    observer.observe(button);
+    window.addEventListener("resize", measure);
+    document.fonts.ready.then(measure);
+    measure();
+    return () => {
+      stopped = true;
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+  useLayoutEffect(() => {
+    const id = pendingFocus.current;
+    if (!id) return;
+    pendingFocus.current = null;
+    const target =
+      root.current?.querySelector<HTMLElement>(
+        `.toolbar-visible [data-tool-id="${id}"]`,
+      ) ||
+      (more.current?.open
+        ? more.current.querySelector<HTMLElement>(`[data-tool-id="${id}"]`)
+        : null) ||
+      more.current?.querySelector<HTMLElement>("summary") ||
+      root.current?.querySelector<HTMLElement>(
+        ".toolbar-visible button:not(:disabled),.toolbar-visible select:not(:disabled)",
+      );
+    target?.focus();
+  }, [visibleCount]);
   function closeMenus() {
     root.current
       ?.querySelectorAll("details[open]")
@@ -80,175 +243,124 @@ export function MarkdownToolbar({ editor, onImage, history }: Props) {
     // Apply after the native modal closes so its focus restoration does not steal the editor caret.
     requestAnimationFrame(() => run(action));
   }
+  function activate(tool: Tool) {
+    closeMenus();
+    if (tool.action) run(tool.action);
+    else if (tool.dialog) show(tool.dialog);
+    else if (tool.id === "image") onImage();
+    else if (tool.id === "undo") editor.current?.undo();
+    else if (tool.id === "redo") editor.current?.redo();
+    else if (tool.id === "search") editor.current?.search();
+  }
+  function renderTool(tool: Tool, measuring = false, overflow = false) {
+    if (tool.id === "heading")
+      return (
+        <span
+          className={overflow ? "overflow-heading" : "tool-slot"}
+          key={tool.id}
+        >
+          {overflow && <span>标题级别</span>}
+          <select
+            data-tool-id={measuring ? undefined : tool.id}
+            aria-label={tool.label}
+            title={`标题级别 (${tool.shortcut})`}
+            value=""
+            tabIndex={measuring ? -1 : undefined}
+            disabled={measuring}
+            onChange={(e) =>
+              run({ type: "heading", level: Number(e.target.value) })
+            }
+          >
+            <option value="" disabled>
+              标题
+            </option>
+            <option value="0">正文</option>
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <option value={n} key={n}>
+                H{n} 标题
+              </option>
+            ))}
+          </select>
+        </span>
+      );
+    const Icon = tool.icon!;
+    const disabled =
+      measuring ||
+      (tool.id === "undo" && !history.undo) ||
+      (tool.id === "redo" && !history.redo);
+    return (
+      <button
+        key={tool.id}
+        data-tool-id={measuring ? undefined : tool.id}
+        className={overflow ? "overflow-tool" : "tool-slot"}
+        aria-label={overflow ? undefined : tool.label}
+        title={
+          tool.label +
+          (tool.shortcut
+            ? ` (${tool.shortcut})`
+            : tool.hint
+              ? ` · ${tool.hint}`
+              : "")
+        }
+        disabled={disabled}
+        tabIndex={measuring ? -1 : undefined}
+        onClick={() => activate(tool)}
+      >
+        <Icon size={15} />
+        {overflow && (
+          <>
+            {tool.label}
+            {(tool.hint || tool.shortcut) && (
+              <small>{tool.hint || tool.shortcut}</small>
+            )}
+          </>
+        )}
+      </button>
+    );
+  }
   return (
     <>
       <div
-        className="format-bar"
+        className="format-bar adaptive-toolbar"
         ref={root}
         aria-label="Markdown 编辑工具"
         onKeyDown={(e) => {
-          if (e.key === "Escape") {
-            const d = root.current?.querySelector("details[open]");
+          if (e.key === "Escape" && more.current?.open) {
             closeMenus();
-            (d?.querySelector("summary") as HTMLElement)?.focus();
+            more.current?.querySelector<HTMLElement>("summary")?.focus();
           }
         }}
       >
-        <div className="format-group" aria-label="编辑历史">
-          <button
-            title="撤销 (⌘/Ctrl+Z)"
-            aria-label="撤销编辑"
-            disabled={!history.undo}
-            onClick={() => editor.current?.undo()}
-          >
-            <Undo2 size={15} />
-          </button>
-          <button
-            title="重做 (⌘/Ctrl+Shift+Z)"
-            aria-label="重做编辑"
-            disabled={!history.redo}
-            onClick={() => editor.current?.redo()}
-          >
-            <Redo2 size={15} />
-          </button>
+        <div className="toolbar-visible">
+          {TOOLS.slice(0, visibleCount).map((tool) => renderTool(tool))}
         </div>
-        <span className="tool-divider" />
-        <select
-          aria-label="设置标题级别"
-          title="标题级别 (⌘/Ctrl+Alt+1–6)"
-          value=""
-          onChange={(e) =>
-            run({ type: "heading", level: Number(e.target.value) })
-          }
-        >
-          <option value="" disabled>
-            标题
-          </option>
-          <option value="0">正文</option>
-          {[1, 2, 3, 4, 5, 6].map((n) => (
-            <option key={n} value={n}>
-              H{n} 标题
-            </option>
-          ))}
-        </select>
-        <div className="format-group" aria-label="文字格式">
-          <button
-            title="粗体 (⌘/Ctrl+B)"
-            aria-label="粗体"
-            onClick={() => run({ type: "bold" })}
-          >
-            <Bold size={15} />
-          </button>
-          <button
-            title="斜体 (⌘/Ctrl+I)"
-            aria-label="斜体"
-            onClick={() => run({ type: "italic" })}
-          >
-            <Italic size={15} />
-          </button>
-          <button
-            title="删除线 (⌘/Ctrl+Shift+X)"
-            aria-label="删除线"
-            onClick={() => run({ type: "strike" })}
-          >
-            <Strikethrough size={15} />
-          </button>
-          <button
-            title="行内代码 (⌘/Ctrl+E)"
-            aria-label="行内代码"
-            onClick={() => run({ type: "inline-code" })}
-          >
-            <Code size={15} />
-          </button>
-        </div>
-        <details className="tools-dropdown" name="markdown-tools">
-          <summary role="button" aria-label="列表与引用" title="列表与引用">
-            <List size={15} />
-            <span>列表</span>
-            <ChevronDown size={10} />
-          </summary>
-          <div className="tools-menu">
-            <span>列表与引用</span>
-            <button onClick={() => run({ type: "bullet" })}>
-              <List size={15} />
-              无序列表<small>⇧⌘8</small>
-            </button>
-            <button onClick={() => run({ type: "ordered" })}>
-              <ListOrdered size={15} />
-              有序列表<small>⇧⌘7</small>
-            </button>
-            <button onClick={() => run({ type: "task" })}>
-              <ListTodo size={15} />
-              任务列表<small>⇧⌘9</small>
-            </button>
-            <button onClick={() => run({ type: "quote" })}>
-              <Quote size={15} />
-              引用块<small>⇧⌘B</small>
-            </button>
-            <hr />
-            <button onClick={() => run({ type: "indent" })}>
-              <IndentIncrease size={15} />
-              增加缩进
-            </button>
-            <button onClick={() => run({ type: "outdent" })}>
-              <IndentDecrease size={15} />
-              减少缩进
-            </button>
+        {visibleCount < TOOLS.length && (
+          <details className="tools-dropdown tools-more" ref={more}>
+            <summary
+              role="button"
+              aria-label="更多 Markdown 工具"
+              title="显示放不下的编辑工具"
+            >
+              <MoreHorizontal size={17} />
+              <span>更多</span>
+            </summary>
+            <div className="tools-menu">
+              <span>其余编辑工具</span>
+              {TOOLS.slice(visibleCount).map((tool) =>
+                renderTool(tool, false, true),
+              )}
+            </div>
+          </details>
+        )}
+        <div className="toolbar-measure" aria-hidden="true" inert>
+          <div className="toolbar-measure-row" ref={measureRow}>
+            {TOOLS.map((tool) => renderTool(tool, true))}
           </div>
-        </details>
-        <button
-          title="插入链接"
-          aria-label="插入链接"
-          onClick={() => show("link")}
-        >
-          <Link size={15} />
-        </button>
-        <button
-          title="嵌入本地 PNG / JPEG"
-          aria-label="插入本地图片"
-          onClick={onImage}
-        >
-          <ImagePlus size={15} />
-        </button>
-        <details className="tools-dropdown tools-more" name="markdown-tools">
-          <summary
-            role="button"
-            aria-label="更多 Markdown 工具"
-            title="更多插入与编辑工具"
-          >
+          <span className="toolbar-more-size" ref={moreMeasure}>
             <MoreHorizontal size={17} />
             <span>更多</span>
-          </summary>
-          <div className="tools-menu">
-            <span>插入</span>
-            <button onClick={() => show("code")}>
-              <Code2 size={15} />
-              代码块<small>可选语言</small>
-            </button>
-            <button onClick={() => show("table")}>
-              <Table2 size={15} />
-              表格<small>可设尺寸</small>
-            </button>
-            <button onClick={() => run({ type: "rule" })}>
-              <Minus size={15} />
-              分隔线
-            </button>
-            <button onClick={() => run({ type: "pagebreak" })}>
-              <Scissors size={15} />
-              PDF 分页
-            </button>
-            <hr />
-            <button
-              onClick={() => {
-                closeMenus();
-                editor.current?.search();
-              }}
-            >
-              <Search size={15} />
-              查找 / 替换<small>⌘/Ctrl+F</small>
-            </button>
-          </div>
-        </details>
+          </span>
+        </div>
       </div>
       {dialog && (
         <Modal
