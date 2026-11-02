@@ -36,6 +36,9 @@ import {
   Type,
   X,
 } from "lucide-react";
+import { DocumentsModal } from "./ui/DocumentsModal";
+import { SplitHandle } from "./ui/SplitHandle";
+import { ACTIVE_DOCUMENT, readDocument, saveDocument, clearDocuments, type SavedDocument, type Snapshot } from "./core/documents";
 import { TemplatesModal } from "./ui/TemplatesModal";
 import { Home } from "./ui/Home";
 import { Editor, type EditorHandle } from "./ui/Editor";
@@ -57,6 +60,11 @@ const STORE = "paperloom.draft.v1",
 function load() {
   try {
     const p = JSON.parse(localStorage.getItem(PREF) || "{}");
+    if (p.autosave !== false) {
+      const active = localStorage.getItem(ACTIVE_DOCUMENT);
+      const saved = active ? readDocument(localStorage, active) : null;
+      if (saved) return { ...saved, restored: true };
+    }
     const d =
       p.autosave === false
         ? null
@@ -64,6 +72,7 @@ function load() {
     if (d?.version === 1 && typeof d.source === "string") {
       checkInput(d.source);
       return {
+        id: crypto.randomUUID(), revision: null,
         source: d.source,
         options: validateOptions(d.options),
         name: typeof d.name === "string" ? d.name : "document",
@@ -72,6 +81,7 @@ function load() {
     }
   } catch {}
   return {
+    id: crypto.randomUUID(), revision: null,
     source: templates[0].source,
     options: { ...DEFAULT_OPTIONS },
     name: "我的第一份文档",
@@ -115,6 +125,10 @@ export default function App() {
   useEffect(() => {
     document.title = isWorkspace ? "编辑工作台 · Paperloom 墨页" : "Paperloom 墨页 · Markdown 排版与交付";
   }, [isWorkspace]);
+  const [splitWidth, setSplitWidth] = useState(() => {
+    try { const n=Number(localStorage.getItem("paperloom.split.v1")); return n>=25 && n<=75 ? n : 50; } catch { return 50; }
+  });
+  useEffect(() => { try { localStorage.setItem("paperloom.split.v1",String(splitWidth)); } catch {} }, [splitWidth]);
   const [history, setHistory] = useState({ undo: false, redo: false });
   const [initial] = useState(load),
     [source, setSource] = useState(initial.source),
@@ -130,12 +144,15 @@ export default function App() {
     [saveStatus, setSaveStatus] = useState(
       initial.restored ? "已恢复本地草稿" : "草稿仅保存在此浏览器",
     );
+  const documentId = useRef(initial.id), revision = useRef<string|null>(initial.revision);
+  const [documentKey,setDocumentKey] = useState(initial.id);
+  const [saveProblem,setSaveProblem] = useState("");
   const [mode, setMode] = useState<"split" | "edit" | "preview">("split"),
     [sidebar, setSidebar] = useState(() => !matchMedia("(max-width: 720px)").matches),
     [sideTab, setSideTab] = useState<"style" | "outline" | "check">("style"),
     [previewTab, setPreviewTab] = useState<"read" | "pdf">("read"),
     [modal, setModal] = useState<
-      "" | "export" | "templates" | "guide" | "privacy"
+      "" | "export" | "templates" | "guide" | "privacy" | "documents"
     >(""),
     [format, setFormat] = useState<"pdf" | "html" | "md">("pdf"),
     [toast, setToast] = useState(""),
@@ -157,7 +174,7 @@ export default function App() {
     pdfTimer = useRef<ReturnType<typeof setTimeout> | null>(null),
     pdfBusyRef = useRef(false),
     pdfUrlRef = useRef("");
-  const { result, error, busy, fresh } = useCompiler(source);
+  const { result, error, busy, fresh, retry } = useCompiler(source);
   const dark = theme === "dark" || (theme === "system" && systemDark),
     warnings = result?.issues.filter((i) => i.kind === "warning").length || 0;
   const status = (text: string) => setToast(text);
@@ -173,28 +190,60 @@ export default function App() {
       localStorage.setItem(PREF, JSON.stringify({ theme, autosave }));
     } catch {}
   }, [dark, theme, autosave]);
-  useEffect(() => {
-    if (!autosave) {
-      try {
-        localStorage.removeItem(STORE);
-      } catch {}
-      setSaveStatus("本地草稿已关闭");
-      return;
+  function saveCurrent(force = false) {
+    if (!autosave) return true;
+    try {
+      const saved=saveDocument(localStorage,documentId.current,revision.current,{source,name,options},force);
+      revision.current=saved.revision;
+      localStorage.setItem(ACTIVE_DOCUMENT,saved.id);
+      localStorage.removeItem(STORE);
+      setSaveStatus("已保存到此浏览器"); setSaveProblem(""); return true;
+    } catch(e) {
+      const message=e instanceof Error && e.message.includes("其他标签") ? e.message : "本地保存失败，原有记录已保留。请下载 MD 备份后重试。";
+      setSaveStatus("尚未保存，请下载 MD"); setSaveProblem(message); return false;
     }
+  }
+  const saveLatest=useRef(saveCurrent); saveLatest.current=saveCurrent;
+  useEffect(() => {
+    if (!autosave) { setSaveStatus("本地保存已关闭"); return; }
     setSaveStatus("正在保存…");
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem(
-          STORE,
-          JSON.stringify({ version: 1, source, options, name }),
-        );
-        setSaveStatus("已保存到此浏览器");
-      } catch {
-        setSaveStatus("本地空间不足，请下载 MD 保存");
-      }
-    }, 700);
-    return () => clearTimeout(t);
-  }, [source, options, name, autosave]);
+    const timer=setTimeout(()=>saveLatest.current(),700);
+    return ()=>clearTimeout(timer);
+  },[source,name,options,autosave,documentKey]);
+  useEffect(() => {
+    const flush=()=>{ if(document.visibilityState==='hidden') saveLatest.current(); };
+    const leave=(e:BeforeUnloadEvent)=>{if(!saveLatest.current() || !autosave){ e.preventDefault(); e.returnValue=''; }};
+    document.addEventListener('visibilitychange',flush); window.addEventListener('beforeunload',leave);
+    return ()=>{document.removeEventListener('visibilitychange',flush);window.removeEventListener('beforeunload',leave);};
+  },[autosave]);
+  function toggleAutosave(enabled:boolean) {
+    if (!enabled) {
+      if (!window.confirm("关闭本地保存将清除所有已保存文档与历史版本。请确认已下载需要保留的文档。继续关闭？")) return;
+      try { clearDocuments(localStorage); } catch { status("无法清除浏览器中的保存记录，请检查浏览器存储权限。"); return; }
+      revision.current=null; setSaveProblem("");
+    }
+    setAutosave(enabled);
+  }
+  function saveCopy() {
+    try {
+      const saved=saveDocument(localStorage,crypto.randomUUID(),null,{source,name:name+" · 副本",options});
+      documentId.current=saved.id; revision.current=saved.revision; setDocumentKey(saved.id); setName(saved.name);
+      localStorage.setItem(ACTIVE_DOCUMENT,saved.id); setSaveProblem(""); setSaveStatus("副本已保存");
+    } catch { status("副本保存失败，请先下载 MD 备份。"); }
+  }
+  function openDocument(doc:SavedDocument) {
+    // On a conflicting tab, keep this tab's content available for MD backup.
+    if (!saveCurrent(true)) return;
+    try { doc=readDocument(localStorage,doc.id) || doc; } catch { status("文档读取失败，当前正文已保留。"); return; }
+    documentId.current=doc.id; revision.current=doc.revision; setDocumentKey(doc.id);
+    setSource(doc.source); setName(doc.name); setOptions(doc.options); setPrevious(null); setModal("");
+    setPreviewTab("read"); setHistory({undo:false,redo:false});
+    try { localStorage.setItem(ACTIVE_DOCUMENT,doc.id); } catch {}
+  }
+  function restoreVersion(snapshot:Snapshot) {
+    if (!saveCurrent(true)) return;
+    replaceDocument(snapshot.source,snapshot.name,snapshot.options,false);
+  }
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(""), 4500);
@@ -260,14 +309,26 @@ export default function App() {
     text: string,
     newName: string,
     newOptions = options,
+    createNew = true,
   ) {
-    setPrevious({ source, options, name });
+    if (!saveCurrent(true)) return;
+    if (createNew) {
+      documentId.current=crypto.randomUUID(); revision.current=null; setDocumentKey(documentId.current);
+      setHistory({undo:false,redo:false});
+    }
+    setPrevious(createNew ? null : { source, options, name });
     setSource(text);
     setName(newName);
     setOptions(newOptions);
+    if (autosave) {
+      try {
+        const saved=saveDocument(localStorage,documentId.current,revision.current,{source:text,name:newName,options:newOptions},true);
+        revision.current=saved.revision; localStorage.setItem(ACTIVE_DOCUMENT,saved.id);
+      } catch { setSaveProblem("本地保存失败，当前内容尚在，请下载 MD 备份。"); }
+    }
     setPreviewTab("read");
     setModal("");
-    status("已载入文档，可撤销替换");
+    status(createNew ? "已新建文档，原文档保留在最近文档中" : "已替换正文，可撤销或从历史版本恢复");
   }
   async function importFile(f?: File) {
     if (!f) return;
@@ -497,7 +558,7 @@ export default function App() {
           </a>
           {isWorkspace ? <button
             className="primary header-export"
-            disabled={!fresh || pdfBusy}
+            disabled={pdfBusy}
             onClick={() => setModal("export")}
           ><ArrowDownToLine size={15} /> 导出文档</button> : <button className="primary header-export" onClick={enterWorkspace}><Maximize2 size={15} /> 进入工作台</button>}
 
@@ -512,6 +573,7 @@ export default function App() {
           id="editor-workbench"
           tabIndex={-1}
           hidden={!isWorkspace}
+          style={{ "--edit-track": `${splitWidth}fr`, "--preview-track": `${100-splitWidth}fr` } as import("react").CSSProperties}
           className={`workbench mode-${mode} ${sidebar ? "" : "no-sidebar"}`}
           aria-label="Markdown 工作台"
         >
@@ -531,13 +593,13 @@ export default function App() {
               </span>
             </div>
             <div className="document-actions">
+              <button onClick={() => { saveCurrent(true); setModal("documents"); }}>最近 / 历史</button>
+              <button onClick={() => { download(new Blob([source],{type:"text/markdown;charset=utf-8"}),filename(name)+".md"); status("Markdown 已下载"); }}>保存 MD</button>
               {previous && (
                 <button
                   onClick={() => {
                     const p = previous;
-                    setSource(p.source);
-                    setOptions(p.options);
-                    setName(p.name);
+                    replaceDocument(p.source,p.name,p.options,false);
                     setPrevious(null);
                     status("已恢复替换前的文档");
                   }}
@@ -596,6 +658,7 @@ export default function App() {
             </div>
           </div>
           <div className="editor-pane">
+            <SplitHandle value={splitWidth} onChange={setSplitWidth} />
             <div className="pane-head">
               <span>
                 <span className="source-dot" /> MARKDOWN
@@ -609,6 +672,7 @@ export default function App() {
             />
             <div className="editor-area">
               <Editor
+                key={documentKey}
                 ref={editor}
                 value={source}
                 onChange={change}
@@ -699,7 +763,7 @@ export default function App() {
                         : "CLARITY IS A FORM OF RESPECT"}
                   </div>
                   {error ? (
-                    <div className="preview-error">{error}</div>
+                    <div className="preview-error" role="alert">{error}<br /><button className="secondary" onClick={retry}>重新预览</button></div>
                   ) : (
                     <>
                       {options.toc && result && (
@@ -1049,9 +1113,11 @@ export default function App() {
           e.target.value = "";
         }}
       />
+      {saveProblem && <div className="save-problem" role="alert">{saveProblem}<button onClick={saveCopy}>另存副本</button><button onClick={()=>saveCurrent()}>重试保存</button><button onClick={()=>{download(new Blob([source],{type:"text/markdown;charset=utf-8"}),filename(name)+".md");}}>下载 MD</button></div>}
+      {modal === "documents" && <DocumentsModal currentId={documentId.current} enabled={autosave} onClose={()=>setModal("")} onOpen={openDocument} onRestore={restoreVersion} />}
       {modal === "templates" && (
-        <TemplatesModal onClose={() => setModal("")} onSelect={(t) =>
-          replaceDocument(t.source, t.label, { ...DEFAULT_OPTIONS, theme: t.theme })
+        <TemplatesModal onClose={() => setModal("")} onSelect={(t, createNew) =>
+          replaceDocument(t.source, t.label, { ...DEFAULT_OPTIONS, theme: t.theme }, createNew)
         } />
       )}
       {modal === "export" && (
@@ -1147,7 +1213,7 @@ export default function App() {
             </button>
             <button
               className="primary"
-              disabled={!fresh || pdfBusy || exportBusy}
+              disabled={(format === "pdf" && !fresh) || pdfBusy || exportBusy}
               onClick={() => void exportDocument()}
             >
               {pdfBusy || exportBusy ? (
@@ -1178,7 +1244,7 @@ export default function App() {
               <small>
                 正文和排版设置保存在此浏览器。
                 <br />
-                关闭后立即删除已保存草稿，当前编辑内容仍保留。
+                关闭后会删除此浏览器的所有最近文档和历史版本，当前编辑内容仍保留。
               </small>
             </span>
             <input
@@ -1186,7 +1252,7 @@ export default function App() {
               role="switch"
               aria-label="保存本地草稿"
               checked={autosave}
-              onChange={(e) => setAutosave(e.target.checked)}
+              onChange={(e) => toggleAutosave(e.target.checked)}
             />
           </div>
           <p className="export-note">
@@ -1210,7 +1276,7 @@ export default function App() {
               <section>
                 <h3>01 / 写什么都可以</h3>
                 <p>
-                  直接编辑左侧源码，或导入 UTF-8 的 .md /
+                  通过「最近 / 历史」切换文档、预览和恢复历史。模板可先完整预览，默认新建文档，也能替换当前正文。拖动分栏边界调整宽度，双击恢复均分。直接编辑左侧源码，或导入 UTF-8 的 .md /
                   .txt。支持标题、列表、引用、链接、代码高亮、删除线、表格和任务清单。工具栏支持标题、文字格式、列表、链接、代码块和表格。选中文本后应用格式，再次点击可以取消。
                 </p>
                 <pre>

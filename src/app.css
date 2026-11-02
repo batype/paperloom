@@ -2329,3 +2329,39 @@ main#workspace {
   .template-library .template-preview h3 { font-size: 16px; margin: 10px 0; }
   .template-preview ul { font-size: 7px; }
 }
+
+/* Document management, recovery and adjustable editor split. */
+.document-library, .template-full-preview { padding: 20px 28px 28px; font-size: 12px; line-height: 1.8; }
+.document-library > p { color: var(--muted); }
+.saved-document { display: flex; align-items: center; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.saved-document > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.saved-document small { display: block; color: var(--muted); }
+.history-version { display: block; text-align: left; padding: 12px; width: 100%; border-bottom: 1px solid var(--line); }
+.history-version[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.history-source { max-height: 260px; overflow: auto; white-space: pre-wrap; background: var(--soft); padding: 15px; }
+.template-full-preview .paper { padding: 32px; border: 1px solid var(--line); }
+.template-use-actions { position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--line); }
+.save-problem { position: fixed; bottom: 32px; left: 20px; right: 20px; z-index: 70; padding: 14px; background: var(--surface); border: 1px solid #bd6334; border-radius: 8px; font-size: 12px; box-shadow: 0 5px 25px #0002; }
+.save-problem button { margin-left: 10px; text-decoration: underline; }
+.editor-pane { position: relative; }
+.split-handle { position: absolute; right: -4px; top: 0; bottom: 0; width: 8px; z-index: 18; cursor: col-resize; touch-action: none; }
+.split-handle:hover, .split-handle:focus-visible { background: var(--accent); opacity: .65; outline: 2px solid var(--accent); }
+.mode-edit .split-handle, .mode-preview .split-handle { display: none; }
+@media (min-width: 981px) {
+  .workspace-page .workbench.mode-split { grid-template-columns: minmax(240px, var(--edit-track, 1fr)) minmax(280px, var(--preview-track, 1fr)) 246px; }
+  .workspace-page .workbench.mode-split.no-sidebar { grid-template-columns: minmax(240px, var(--edit-track, 1fr)) minmax(280px, var(--preview-track, 1fr)); }
+}
+@media (min-width: 721px) and (max-width: 980px) {
+  .workspace-page .workbench.mode-split { grid-template-columns: minmax(240px, var(--edit-track, 1fr)) minmax(280px, var(--preview-track, 1fr)); }
+  .workspace-page .save-state { display: none; }
+}
+@media (max-width: 720px) {
+  .split-handle { display: none; }
+  .workspace-page .document-actions { overflow-x: auto; justify-content: flex-start; max-width: 100%; }
+  .workspace-page .document-actions > button, .workspace-page .layout-switch { flex-shrink: 0; white-space: nowrap; }
+  .document-library, .template-full-preview { padding: 16px 20px; }
+  .saved-document { flex-wrap: wrap; }
+  .saved-document > div { flex-basis: 100%; }
+  .template-full-preview .paper { padding: 20px; }
+  .template-use-actions { flex-wrap: wrap; }
+}

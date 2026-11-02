@@ -10,3 +10,4 @@ self.onmessage = (event) => {
     });
   }
 };
+self.postMessage({ ready: true });
